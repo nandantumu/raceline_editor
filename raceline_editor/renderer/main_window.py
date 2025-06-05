@@ -14,12 +14,100 @@ from PyQt6.QtWidgets import (
     QLabel,
     QSizePolicy,
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QPointF
+from PyQt6.QtGui import QPainterPath
 
 # Imports for raceline processing
 from raceline_editor.raceline.importer import import_raceline_csv
 from raceline_editor.raceline.models import RecordedTrajectory, TrajectoryPoint
 from raceline_editor.raceline.processing import create_spline_from_recorded
+
+
+class MultiColorLine(pg.GraphicsObject):
+    """A graphics object that displays a multi-colored line with colors determined by values."""
+
+    def __init__(self, x, y, values, colormap, width=1, connect="all"):
+        super().__init__()
+        self.x = np.asarray(x)
+        self.y = np.asarray(y)
+        self.values = np.asarray(values)
+        self.colormap = colormap
+        self.width = width
+
+        # Determine connection points
+        if connect == "all":
+            self.connect_array = np.ones(len(self.x) - 1, dtype=bool)
+        elif connect == "pairs":
+            self.connect_array = np.zeros(len(self.x) - 1, dtype=bool)
+            self.connect_array[::2] = True
+        elif connect == "finite":
+            self.connect_array = (
+                np.isfinite(self.x[:-1])
+                & np.isfinite(self.x[1:])
+                & np.isfinite(self.y[:-1])
+                & np.isfinite(self.y[1:])
+            )
+        else:
+            self.connect_array = connect
+
+        self.path = None
+        self.generatePath()
+
+    def generatePath(self):
+        self.path = QPainterPath()
+
+        # Create path
+        for i in range(len(self.x) - 1):
+            if self.connect_array[i]:
+                # Add line segment
+                self.path.moveTo(self.x[i], self.y[i])
+                self.path.lineTo(self.x[i + 1], self.y[i + 1])
+
+    def boundingRect(self):
+        if self.path is None:
+            return pg.QtCore.QRectF()
+        return self.path.boundingRect()
+
+    def paint(self, painter, option, widget):
+        if self.path is None:
+            return
+
+        painter.setRenderHint(painter.RenderHint.Antialiasing)
+
+        # Find min/max for color scaling
+        v_min = np.min(self.values)
+        v_max = np.max(self.values)
+        v_range = max(0.1, v_max - v_min)  # Avoid division by zero
+
+        # Draw each segment with a color based on its value
+        for i in range(len(self.x) - 1):
+            if self.connect_array[i]:
+                # Calculate color
+                norm_v = (self.values[i] - v_min) / v_range
+                qcolor = self.colormap.mapToQColor(norm_v)
+
+                # Set pen color
+                pen = pg.mkPen(color=qcolor, width=self.width)
+                painter.setPen(pen)
+
+                # Draw line segment
+                painter.drawLine(
+                    QPointF(self.x[i], self.y[i]), QPointF(self.x[i + 1], self.y[i + 1])
+                )
+
+    def setData(self, x, y, values):
+        """Update the data in the line."""
+        self.x = np.asarray(x)
+        self.y = np.asarray(y)
+        self.values = np.asarray(values)
+
+        # Recompute connect_array if length changed
+        if len(self.connect_array) != len(self.x) - 1:
+            self.connect_array = np.ones(len(self.x) - 1, dtype=bool)
+
+        self.generatePath()
+        self.prepareGeometryChange()
+        self.update()
 
 
 class MainWindow(QMainWindow):
@@ -284,18 +372,39 @@ class MainWindow(QMainWindow):
         self.vel_plot_widget.clear()
 
         # Plot new data
-        self.xy_plot_widget.plot(
-            x_spline,
-            y_spline,
-            pen=pg.mkPen("c", width=2),
-            name=f"{spline_trajectory.name} (Path)",
+        # self.xy_plot_widget.plot(
+        #     x_spline,
+        #     y_spline,
+        #     pen=pg.mkPen("c", width=2),
+        #     name=f"{spline_trajectory.name} (Path)",
+        # )
+        # self.vel_plot_widget.plot(
+        #     s_spline,
+        #     vx_spline,
+        #     pen=pg.mkPen("m", width=2),
+        #     name=f"{spline_trajectory.name} (Velocity)",
+        # )
+
+        # --- Using MultiColorLine for velocity-based coloring ---
+        # Create a custom colormap for velocity: green (low) -> yellow (medium) -> red (high)
+        custom_colors = np.array(
+            [
+                [0, 200, 0, 255],    # Green (low speed)
+                [255, 255, 0, 255],  # Yellow (medium speed)
+                [255, 0, 0, 255],    # Red (high speed)
+            ]
         )
-        self.vel_plot_widget.plot(
-            s_spline,
-            vx_spline,
-            pen=pg.mkPen("m", width=2),
-            name=f"{spline_trajectory.name} (Velocity)",
+        pos = np.linspace(0, 1, len(custom_colors))
+        colormap = pg.ColorMap(pos, custom_colors)
+
+        # Plot the trajectory with velocity-based coloring
+        multi_color_line = MultiColorLine(
+            x_spline, y_spline, vx_spline, colormap, width=5
         )
+        self.xy_plot_widget.addItem(multi_color_line)
+
+        # Plot velocity vs. distance
+        self.vel_plot_widget.plot(s_spline, vx_spline, pen=pg.mkPen("b"))
 
         print("Trajectory plotted.")
 
