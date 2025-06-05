@@ -1,0 +1,25 @@
+[project]
+name = "raceline-editor"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "numpy>=2.2.6",
+    "pandas>=2.3.0",
+    "pyqt6>=6.9.0",
+    "pyqtgraph>=0.13.7",
+    "scipy>=1.15.3",
+]
+
+[project.scripts]
+raceline_editor = "scripts.run_gui:main"
+
+[tool.setuptools.packages.find]
+where = ["."] # Search in the current directory
+include = [
+    "raceline_editor*",
+] # Include only the raceline_editor package and its submodules
+exclude = [
+    "example_trajectories*",
+] # Exclude example_trajectories from being treated as a package
