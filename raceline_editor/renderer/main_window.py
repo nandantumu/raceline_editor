@@ -115,7 +115,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.csv_path = csv_path
         self.setWindowTitle("Raceline Editor")
-        self.num_spline_segments = 200  # Number of segments for spline interpolation
+        self.num_spline_segments = 30  # Number of segments for spline interpolation
 
         # Main widget and layout
         central_widget = QWidget()
@@ -367,6 +367,12 @@ class MainWindow(QMainWindow):
         y_spline = np.array([p.y for p in spline_trajectory.points])
         vx_spline = np.array([p.vx for p in spline_trajectory.points])
 
+        # Also extract the original raw trajectory points for visualization
+        x_raw = np.array([p.x for p in recorded_trajectory.points])
+        y_raw = np.array([p.y for p in recorded_trajectory.points])
+        s_raw = np.array([p.s for p in recorded_trajectory.points])
+        vx_raw = np.array([p.vx for p in recorded_trajectory.points])
+
         # Clear previous plots
         self.xy_plot_widget.clear()
         self.vel_plot_widget.clear()
@@ -385,13 +391,25 @@ class MainWindow(QMainWindow):
         #     name=f"{spline_trajectory.name} (Velocity)",
         # )
 
-        # --- Using MultiColorLine for velocity-based coloring ---
-        # Create a custom colormap for velocity: green (low) -> yellow (medium) -> red (high)
+        # --- First add the raw trajectory points as white scatter points
+        # They will be rendered beneath the colored line
+        scatter = pg.ScatterPlotItem(
+            x=x_raw,
+            y=y_raw,
+            pen=pg.mkPen("w"),
+            brush=pg.mkBrush("w"),
+            size=5,
+            name="Original points",
+        )
+        self.xy_plot_widget.addItem(scatter)
+
+        # Now add the spline trajectory with velocity-based coloring ON TOP
+        # Create a custom colormap for velocity: green (low) -> yellow (medium) -> red (high speed)
         custom_colors = np.array(
             [
-                [0, 200, 0, 255],    # Green (low speed)
+                [0, 200, 0, 255],  # Green (low speed)
                 [255, 255, 0, 255],  # Yellow (medium speed)
-                [255, 0, 0, 255],    # Red (high speed)
+                [255, 0, 0, 255],  # Red (high speed)
             ]
         )
         pos = np.linspace(0, 1, len(custom_colors))
@@ -404,7 +422,25 @@ class MainWindow(QMainWindow):
         self.xy_plot_widget.addItem(multi_color_line)
 
         # Plot velocity vs. distance
-        self.vel_plot_widget.plot(s_spline, vx_spline, pen=pg.mkPen("b"))
+        # First add the raw velocity points as a white line
+        self.vel_plot_widget.plot(
+            s_raw,
+            vx_raw,
+            pen=pg.mkPen("w", width=1.5),
+            name="Original velocity points",
+        )
+
+        # Then add the spline velocity with velocity-based coloring ON TOP
+        # Use only the points before the loop closure to prevent connecting the end back to the start
+        # Create the velocity colored line for the velocity plot
+        multi_color_vel_line = MultiColorLine(
+            s_spline[:-1],  # Exclude the last point which would connect back to the start
+            vx_spline[:-1],
+            vx_spline[:-1],  # Use velocity as color parameter
+            colormap,
+            width=2,
+        )
+        self.vel_plot_widget.addItem(multi_color_vel_line)
 
         print("Trajectory plotted.")
 
