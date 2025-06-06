@@ -361,17 +361,18 @@ class MainWindow(QMainWindow):
 
         print(f"Generated spline with {len(spline_trajectory.points)} points.")
 
-        # Extract data for plotting
-        s_spline = np.array([p.s for p in spline_trajectory.points])
-        x_spline = np.array([p.x for p in spline_trajectory.points])
-        y_spline = np.array([p.y for p in spline_trajectory.points])
-        vx_spline = np.array([p.vx for p in spline_trajectory.points])
+        # Access spline data directly from arrays
+        s_spline = spline_trajectory.s_array
+        x_spline = spline_trajectory.x_array
+        y_spline = spline_trajectory.y_array
+        vx_spline = spline_trajectory.vx_array
 
-        # Also extract the original raw trajectory points for visualization
-        x_raw = np.array([p.x for p in recorded_trajectory.points])
-        y_raw = np.array([p.y for p in recorded_trajectory.points])
-        s_raw = np.array([p.s for p in recorded_trajectory.points])
-        vx_raw = np.array([p.vx for p in recorded_trajectory.points])
+        # Get raw trajectory arrays using the helper method
+        raw_arrays = recorded_trajectory.get_arrays()
+        x_raw = raw_arrays["x"]
+        y_raw = raw_arrays["y"]
+        s_raw = raw_arrays["s"]
+        vx_raw = raw_arrays["vx"]
 
         # Clear previous plots
         self.xy_plot_widget.clear()

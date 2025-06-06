@@ -30,6 +30,25 @@ class RecordedTrajectory:
         default_factory=dict
     )  # For storing original file path, headers, etc.
 
+    def get_arrays(self):
+        """Extract trajectory data as numpy arrays for visualization."""
+        import numpy as np
+        if not self.points:
+            return {attr: np.array([]) for attr in ["s", "x", "y", "z", "psi", "kappa", "vx", "ax", "theta", "phi"]}
+        
+        return {
+            "s": np.array([p.s for p in self.points]),
+            "x": np.array([p.x for p in self.points]),
+            "y": np.array([p.y for p in self.points]),
+            "z": np.array([p.z for p in self.points]),
+            "psi": np.array([p.psi for p in self.points]),
+            "kappa": np.array([p.kappa for p in self.points]),
+            "vx": np.array([p.vx for p in self.points]),
+            "ax": np.array([p.ax for p in self.points]),
+            "theta": np.array([p.theta for p in self.points]),
+            "phi": np.array([p.phi for p in self.points])
+        }
+
     def add_point(
         self,
         s: float,
@@ -73,7 +92,34 @@ class SplineTrajectory:
     metadata: dict = field(
         default_factory=dict
     )  # For storing interpolation settings, etc.
+    
+    # Arrays for direct access to spline data for visualization
+    s_array: Any = None  # numpy array of s values
+    x_array: Any = None  # numpy array of x values
+    y_array: Any = None  # numpy array of y values
+    z_array: Any = None  # numpy array of z values
+    psi_array: Any = None  # numpy array of psi values
+    kappa_array: Any = None  # numpy array of kappa values
+    vx_array: Any = None  # numpy array of vx values
+    ax_array: Any = None  # numpy array of ax values
+    theta_array: Any = None  # numpy array of theta values
+    phi_array: Any = None  # numpy array of phi values
 
+    def get_arrays(self):
+        """Returns a dictionary of all arrays for easy access."""
+        return {
+            "s": self.s_array,
+            "x": self.x_array,
+            "y": self.y_array,
+            "z": self.z_array,
+            "psi": self.psi_array,
+            "kappa": self.kappa_array,
+            "vx": self.vx_array,
+            "ax": self.ax_array,
+            "theta": self.theta_array,
+            "phi": self.phi_array
+        }
+        
     # You might add methods here to generate points from spline_parameters
     # or to evaluate the spline at a given 's' value.
 

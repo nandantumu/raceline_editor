@@ -13,13 +13,38 @@ def _create_constant_spline_trajectory(
     original_name: str
 ) -> SplineTrajectory:
     """Creates a SplineTrajectory with all points being a copy of the first_point_data."""
+    # Create arrays with constant values for direct use
+    num_points = num_spline_segments + 1
+    s_array = np.full(num_points, first_point_data.s)
+    x_array = np.full(num_points, first_point_data.x)
+    y_array = np.full(num_points, first_point_data.y)
+    z_array = np.full(num_points, first_point_data.z)
+    psi_array = np.full(num_points, first_point_data.psi)
+    kappa_array = np.full(num_points, first_point_data.kappa)
+    vx_array = np.full(num_points, first_point_data.vx)
+    ax_array = np.full(num_points, first_point_data.ax)
+    theta_array = np.full(num_points, first_point_data.theta)
+    phi_array = np.full(num_points, first_point_data.phi)
+    
     spline_traj = SplineTrajectory(
         name=f"{original_name}_spline",
         original_trajectory_name=original_name,
-        spline_type="constant"
+        spline_type="constant",
+        # Store arrays directly
+        s_array=s_array,
+        x_array=x_array,
+        y_array=y_array,
+        z_array=z_array,
+        psi_array=psi_array,
+        kappa_array=kappa_array,
+        vx_array=vx_array,
+        ax_array=ax_array,
+        theta_array=theta_array,
+        phi_array=phi_array
     )
+    
     # num_spline_segments means num_spline_segments + 1 points
-    for _ in range(num_spline_segments + 1):
+    for _ in range(num_points):
         spline_traj.points.append(first_point_data) # Add copies
     return spline_traj
 
@@ -39,10 +64,22 @@ def create_spline_from_recorded(
         A SplineTrajectory object.
     """
     if not recorded_trajectory.points:
+        empty_arrays = np.array([])
         return SplineTrajectory(
             name=f"{recorded_trajectory.name}_spline_empty",
             original_trajectory_name=recorded_trajectory.name,
-            spline_type="empty"
+            spline_type="empty",
+            # Include empty arrays
+            s_array=empty_arrays,
+            x_array=empty_arrays,
+            y_array=empty_arrays,
+            z_array=empty_arrays,
+            psi_array=empty_arrays,
+            kappa_array=empty_arrays,
+            vx_array=empty_arrays,
+            ax_array=empty_arrays,
+            theta_array=empty_arrays,
+            phi_array=empty_arrays
         )
 
     if len(recorded_trajectory.points) == 1:
@@ -161,7 +198,18 @@ def create_spline_from_recorded(
         name=f"{recorded_trajectory.name}_spline",
         original_trajectory_name=recorded_trajectory.name,
         spline_type="cubic_periodic",
-        # spline_parameters=cs_all # Optionally store the spline object itself
+        spline_parameters=cs_all,  # Store the spline object itself
+        # Store arrays directly for easier access during visualization
+        s_array=ss_p,
+        x_array=xs_p,
+        y_array=ys_p,
+        z_array=zs_p,
+        psi_array=psis_p,
+        kappa_array=kappas_p,
+        vx_array=vxs_p,
+        ax_array=axs_p,
+        theta_array=thetas_p,
+        phi_array=phis_p
     )
 
     for i in range(len(xs_p)): # Should be num_spline_segments + 1 points
