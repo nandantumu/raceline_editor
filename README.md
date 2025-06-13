@@ -1,4 +1,6 @@
 # Raceline Editor
+**This project is in a very early stage, and builds may differ greatly or be non-functional. This software is offered as-is, but contributions are welcome.** 
+
 
 The Raceline Editor module provides an intuitive interface for graphic editing of racelines, making it easy to visualize, modify, and optimize racing lines for various tracks.
 
