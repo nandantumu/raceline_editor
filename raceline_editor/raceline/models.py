@@ -33,9 +33,24 @@ class RecordedTrajectory:
     def get_arrays(self):
         """Extract trajectory data as numpy arrays for visualization."""
         import numpy as np
+
         if not self.points:
-            return {attr: np.array([]) for attr in ["s", "x", "y", "z", "psi", "kappa", "vx", "ax", "theta", "phi"]}
-        
+            return {
+                attr: np.array([])
+                for attr in [
+                    "s",
+                    "x",
+                    "y",
+                    "z",
+                    "psi",
+                    "kappa",
+                    "vx",
+                    "ax",
+                    "theta",
+                    "phi",
+                ]
+            }
+
         return {
             "s": np.array([p.s for p in self.points]),
             "x": np.array([p.x for p in self.points]),
@@ -46,7 +61,7 @@ class RecordedTrajectory:
             "vx": np.array([p.vx for p in self.points]),
             "ax": np.array([p.ax for p in self.points]),
             "theta": np.array([p.theta for p in self.points]),
-            "phi": np.array([p.phi for p in self.points])
+            "phi": np.array([p.phi for p in self.points]),
         }
 
     def add_point(
@@ -92,7 +107,7 @@ class SplineTrajectory:
     metadata: dict = field(
         default_factory=dict
     )  # For storing interpolation settings, etc.
-    
+
     # Arrays for direct access to spline data for visualization
     s_array: Any = None  # numpy array of s values
     x_array: Any = None  # numpy array of x values
@@ -117,11 +132,41 @@ class SplineTrajectory:
             "vx": self.vx_array,
             "ax": self.ax_array,
             "theta": self.theta_array,
-            "phi": self.phi_array
+            "phi": self.phi_array,
         }
-        
+
     # You might add methods here to generate points from spline_parameters
-    # or to evaluate the spline at a given 's' value.
+    def sample_high_resolution(self, num_points: int = 1000):
+        """
+        Generates high-resolution arrays for visualization by sampling the spline at `num_points` points.
+        This method assumes that `spline_parameters` contains callable functions for each attribute,
+        or that `points` are densely sampled and can be interpolated.
+        """
+
+        if not self.points:
+            # No points to sample from
+            return
+
+        # Use the min and max s values from the current points
+        s_values = np.array([p.s for p in self.points])
+        s_min, s_max = np.min(s_values), np.max(s_values)
+        s_sampled = np.linspace(s_min, s_max, num_points)
+
+        # If spline_parameters contains callables, use them; otherwise, interpolate from points
+        def interp(attr):
+            arr = np.array([getattr(p, attr) for p in self.points])
+            return np.interp(s_sampled, s_values, arr)
+
+        self.s_array = s_sampled
+        self.x_array = interp("x")
+        self.y_array = interp("y")
+        self.z_array = interp("z")
+        self.psi_array = interp("psi")
+        self.kappa_array = interp("kappa")
+        self.vx_array = interp("vx")
+        self.ax_array = interp("ax")
+        self.theta_array = interp("theta")
+        self.phi_array = interp("phi")
 
 
 if __name__ == "__main__":

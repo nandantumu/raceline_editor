@@ -435,7 +435,9 @@ class MainWindow(QMainWindow):
         # Use only the points before the loop closure to prevent connecting the end back to the start
         # Create the velocity colored line for the velocity plot
         multi_color_vel_line = MultiColorLine(
-            s_spline[:-1],  # Exclude the last point which would connect back to the start
+            s_spline[
+                :-1
+            ],  # Exclude the last point which would connect back to the start
             vx_spline[:-1],
             vx_spline[:-1],  # Use velocity as color parameter
             colormap,
