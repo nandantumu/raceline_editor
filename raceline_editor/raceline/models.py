@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import List, Any, Optional
 
+import numpy as np
+
 
 @dataclass
 class TrajectoryPoint:
@@ -32,8 +34,6 @@ class RecordedTrajectory:
 
     def get_arrays(self):
         """Extract trajectory data as numpy arrays for visualization."""
-        import numpy as np
-
         if not self.points:
             return {
                 attr: np.array([])
