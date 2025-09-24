@@ -1,7 +1,15 @@
 import numpy as np
 from scipy.interpolate import CubicSpline
-from typing import List
-from .models import RecordedTrajectory, SplineTrajectory, TrajectoryPoint
+from .models import (
+    RecordedTrajectory,
+    SplineTrajectory,
+    TrajectoryPoint,
+    TRAJECTORY_ATTRIBUTES,
+)
+
+
+_NON_S_ATTRIBUTES = tuple(attr for attr in TRAJECTORY_ATTRIBUTES if attr != "s")
+_SPLINE_ATTRIBUTE_ORDER = _NON_S_ATTRIBUTES + ("s",)
 
 
 def _spline_helpers_close_arrays(*arrays):
@@ -15,32 +23,17 @@ def _create_constant_spline_trajectory(
     """Creates a SplineTrajectory with all points being a copy of the first_point_data."""
     # Create arrays with constant values for direct use
     num_points = num_spline_segments + 1
-    s_array = np.full(num_points, first_point_data.s)
-    x_array = np.full(num_points, first_point_data.x)
-    y_array = np.full(num_points, first_point_data.y)
-    z_array = np.full(num_points, first_point_data.z)
-    psi_array = np.full(num_points, first_point_data.psi)
-    kappa_array = np.full(num_points, first_point_data.kappa)
-    vx_array = np.full(num_points, first_point_data.vx)
-    ax_array = np.full(num_points, first_point_data.ax)
-    theta_array = np.full(num_points, first_point_data.theta)
-    phi_array = np.full(num_points, first_point_data.phi)
+    arrays = {
+        f"{attr}_array": np.full(num_points, getattr(first_point_data, attr))
+        for attr in TRAJECTORY_ATTRIBUTES
+    }
 
     spline_traj = SplineTrajectory(
         name=f"{original_name}_spline",
         original_trajectory_name=original_name,
         spline_type="constant",
         # Store arrays directly
-        s_array=s_array,
-        x_array=x_array,
-        y_array=y_array,
-        z_array=z_array,
-        psi_array=psi_array,
-        kappa_array=kappa_array,
-        vx_array=vx_array,
-        ax_array=ax_array,
-        theta_array=theta_array,
-        phi_array=phi_array,
+        **arrays,
     )
 
     # num_spline_segments means num_spline_segments + 1 points
@@ -65,21 +58,13 @@ def create_spline_from_recorded(
     """
     if not recorded_trajectory.points:
         empty_arrays = np.array([])
+        arrays = {f"{attr}_array": empty_arrays for attr in TRAJECTORY_ATTRIBUTES}
         return SplineTrajectory(
             name=f"{recorded_trajectory.name}_spline_empty",
             original_trajectory_name=recorded_trajectory.name,
             spline_type="empty",
             # Include empty arrays
-            s_array=empty_arrays,
-            x_array=empty_arrays,
-            y_array=empty_arrays,
-            z_array=empty_arrays,
-            psi_array=empty_arrays,
-            kappa_array=empty_arrays,
-            vx_array=empty_arrays,
-            ax_array=empty_arrays,
-            theta_array=empty_arrays,
-            phi_array=empty_arrays,
+            **arrays,
         )
 
     if len(recorded_trajectory.points) == 1:
@@ -88,60 +73,30 @@ def create_spline_from_recorded(
         )
 
     # Extract data into numpy arrays
-    s_orig = np.array([p.s for p in recorded_trajectory.points])
-    x_orig = np.array([p.x for p in recorded_trajectory.points])
-    y_orig = np.array([p.y for p in recorded_trajectory.points])
-    z_orig = np.array([p.z for p in recorded_trajectory.points])
-    psi_orig = np.array([p.psi for p in recorded_trajectory.points])
-    kappa_orig = np.array([p.kappa for p in recorded_trajectory.points])
-    vx_orig = np.array([p.vx for p in recorded_trajectory.points])
-    ax_orig = np.array([p.ax for p in recorded_trajectory.points])
-    theta_orig = np.array([p.theta for p in recorded_trajectory.points])
-    phi_orig = np.array([p.phi for p in recorded_trajectory.points])
+    attr_arrays = {
+        attr: np.array([getattr(p, attr) for p in recorded_trajectory.points])
+        for attr in TRAJECTORY_ATTRIBUTES
+    }
 
     # Ensure control points are periodic for CubicSpline with bc_type='periodic'
     # The y values for CubicSpline must satisfy y[0] == y[-1] for periodic.
-    (
-        s_ctrl,
-        x_ctrl,
-        y_ctrl,
-        z_ctrl,
-        psi_ctrl,
-        kappa_ctrl,
-        vx_ctrl,
-        ax_ctrl,
-        theta_ctrl,
-        phi_ctrl,
-    ) = (
-        s_orig,
-        x_orig,
-        y_orig,
-        z_orig,
-        psi_orig,
-        kappa_orig,
-        vx_orig,
-        ax_orig,
-        theta_orig,
-        phi_orig,
-    )
+    ctrl_arrays = attr_arrays.copy()
 
     # Check if the original data is already closed for periodicity.
     # If not, append the first point's data to the end of each array.
     is_closed = True
-    if not (np.allclose(x_orig[0], x_orig[-1]) and np.allclose(y_orig[0], y_orig[-1])):
+    x_ctrl = ctrl_arrays["x"]
+    y_ctrl = ctrl_arrays["y"]
+    if not (np.allclose(x_ctrl[0], x_ctrl[-1]) and np.allclose(y_ctrl[0], y_ctrl[-1])):
         is_closed = False
 
     if not is_closed:
-        s_ctrl = np.concatenate((s_orig, [s_orig[0]]))
-        x_ctrl = np.concatenate((x_orig, [x_orig[0]]))
-        y_ctrl = np.concatenate((y_orig, [y_orig[0]]))
-        z_ctrl = np.concatenate((z_orig, [z_orig[0]]))
-        psi_ctrl = np.concatenate((psi_orig, [psi_orig[0]]))
-        kappa_ctrl = np.concatenate((kappa_orig, [kappa_orig[0]]))
-        vx_ctrl = np.concatenate((vx_orig, [vx_orig[0]]))
-        ax_ctrl = np.concatenate((ax_orig, [ax_orig[0]]))
-        theta_ctrl = np.concatenate((theta_orig, [theta_orig[0]]))
-        phi_ctrl = np.concatenate((phi_orig, [phi_orig[0]]))
+        ctrl_arrays = {
+            attr: np.concatenate((arr, [arr[0]]))
+            for attr, arr in ctrl_arrays.items()
+        }
+        x_ctrl = ctrl_arrays["x"]
+        y_ctrl = ctrl_arrays["y"]
 
     # Calculate normalized path parameter 't' based on cumulative chord length of (x,y)
     dx_path = np.diff(x_ctrl)
@@ -188,17 +143,9 @@ def create_spline_from_recorded(
         y_indices_for_unique = slice(None)  # use all original y_ctrl rows
 
     y_ctrl_stacked = np.column_stack(
-        (
-            x_ctrl[y_indices_for_unique],
-            y_ctrl[y_indices_for_unique],
-            z_ctrl[y_indices_for_unique],
-            psi_ctrl[y_indices_for_unique],
-            kappa_ctrl[y_indices_for_unique],
-            vx_ctrl[y_indices_for_unique],
-            ax_ctrl[y_indices_for_unique],
-            theta_ctrl[y_indices_for_unique],
-            phi_ctrl[y_indices_for_unique],
-            s_ctrl[y_indices_for_unique],  # Interpolate original 's' values as well
+        tuple(
+            ctrl_arrays[attr][y_indices_for_unique]
+            for attr in _SPLINE_ATTRIBUTE_ORDER
         )
     )
 
@@ -224,47 +171,34 @@ def create_spline_from_recorded(
     sampled_values_period = cs_all(ts_sample)
 
     # Close the sampled arrays
-    (xs_p, ys_p, zs_p, psis_p, kappas_p, vxs_p, axs_p, thetas_p, phis_p, ss_p) = (
-        _spline_helpers_close_arrays(
-            *(
-                sampled_values_period[:, i]
-                for i in range(sampled_values_period.shape[1])
-            )
+    closed_arrays = _spline_helpers_close_arrays(
+        *(
+            sampled_values_period[:, i]
+            for i in range(sampled_values_period.shape[1])
         )
     )
+    closed_arrays_by_attr = dict(zip(_SPLINE_ATTRIBUTE_ORDER, closed_arrays))
 
     # Create SplineTrajectory object
+    arrays_for_spline = {
+        f"{attr}_array": closed_arrays_by_attr[attr]
+        for attr in TRAJECTORY_ATTRIBUTES
+    }
     spline_traj = SplineTrajectory(
         name=f"{recorded_trajectory.name}_spline",
         original_trajectory_name=recorded_trajectory.name,
         spline_type="cubic_periodic",
         spline_parameters=cs_all,  # Store the spline object itself
         # Store arrays directly for easier access during visualization
-        s_array=ss_p,
-        x_array=xs_p,
-        y_array=ys_p,
-        z_array=zs_p,
-        psi_array=psis_p,
-        kappa_array=kappas_p,
-        vx_array=vxs_p,
-        ax_array=axs_p,
-        theta_array=thetas_p,
-        phi_array=phis_p,
+        **arrays_for_spline,
     )
 
-    for i in range(len(xs_p)):  # Should be num_spline_segments + 1 points
-        point = TrajectoryPoint(
-            s=ss_p[i],
-            x=xs_p[i],
-            y=ys_p[i],
-            z=zs_p[i],
-            psi=psis_p[i],
-            kappa=kappas_p[i],
-            vx=vxs_p[i],
-            ax=axs_p[i],
-            theta=thetas_p[i],
-            phi=phis_p[i],
-        )
+    num_points = len(closed_arrays_by_attr["s"])
+    for i in range(num_points):  # Should be num_spline_segments + 1 points
+        point_kwargs = {
+            attr: closed_arrays_by_attr[attr][i] for attr in TRAJECTORY_ATTRIBUTES
+        }
+        point = TrajectoryPoint(**point_kwargs)
         spline_traj.points.append(point)
 
     return spline_traj

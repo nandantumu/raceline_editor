@@ -1,5 +1,19 @@
 from dataclasses import dataclass, field
-from typing import List, Any, Optional
+from typing import Any, List, Optional
+
+
+TRAJECTORY_ATTRIBUTES = (
+    "s",
+    "x",
+    "y",
+    "z",
+    "psi",
+    "kappa",
+    "vx",
+    "ax",
+    "theta",
+    "phi",
+)
 
 
 @dataclass
@@ -35,33 +49,11 @@ class RecordedTrajectory:
         import numpy as np
 
         if not self.points:
-            return {
-                attr: np.array([])
-                for attr in [
-                    "s",
-                    "x",
-                    "y",
-                    "z",
-                    "psi",
-                    "kappa",
-                    "vx",
-                    "ax",
-                    "theta",
-                    "phi",
-                ]
-            }
+            return {attr: np.array([]) for attr in TRAJECTORY_ATTRIBUTES}
 
         return {
-            "s": np.array([p.s for p in self.points]),
-            "x": np.array([p.x for p in self.points]),
-            "y": np.array([p.y for p in self.points]),
-            "z": np.array([p.z for p in self.points]),
-            "psi": np.array([p.psi for p in self.points]),
-            "kappa": np.array([p.kappa for p in self.points]),
-            "vx": np.array([p.vx for p in self.points]),
-            "ax": np.array([p.ax for p in self.points]),
-            "theta": np.array([p.theta for p in self.points]),
-            "phi": np.array([p.phi for p in self.points]),
+            attr: np.array([getattr(p, attr) for p in self.points])
+            for attr in TRAJECTORY_ATTRIBUTES
         }
 
     def add_point(
@@ -123,16 +115,8 @@ class SplineTrajectory:
     def get_arrays(self):
         """Returns a dictionary of all arrays for easy access."""
         return {
-            "s": self.s_array,
-            "x": self.x_array,
-            "y": self.y_array,
-            "z": self.z_array,
-            "psi": self.psi_array,
-            "kappa": self.kappa_array,
-            "vx": self.vx_array,
-            "ax": self.ax_array,
-            "theta": self.theta_array,
-            "phi": self.phi_array,
+            attr: getattr(self, f"{attr}_array")
+            for attr in TRAJECTORY_ATTRIBUTES
         }
 
     # You might add methods here to generate points from spline_parameters
@@ -158,15 +142,10 @@ class SplineTrajectory:
             return np.interp(s_sampled, s_values, arr)
 
         self.s_array = s_sampled
-        self.x_array = interp("x")
-        self.y_array = interp("y")
-        self.z_array = interp("z")
-        self.psi_array = interp("psi")
-        self.kappa_array = interp("kappa")
-        self.vx_array = interp("vx")
-        self.ax_array = interp("ax")
-        self.theta_array = interp("theta")
-        self.phi_array = interp("phi")
+        for attr in TRAJECTORY_ATTRIBUTES:
+            if attr == "s":
+                continue
+            setattr(self, f"{attr}_array", interp(attr))
 
 
 if __name__ == "__main__":
