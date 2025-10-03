@@ -1,4 +1,5 @@
 import numpy as np
+from dataclasses import replace
 from scipy.interpolate import CubicSpline
 from .models import (
     RecordedTrajectory,
@@ -38,7 +39,7 @@ def _create_constant_spline_trajectory(
 
     # num_spline_segments means num_spline_segments + 1 points
     for _ in range(num_points):
-        spline_traj.points.append(first_point_data)  # Add copies
+        spline_traj.points.append(replace(first_point_data))
     return spline_traj
 
 
